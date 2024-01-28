@@ -4,7 +4,7 @@ LIBDEP=../libhtsim.a
 CC=g++
 CFLAGS = -Wall -std=c++11 -g -Wsign-compare
 #CFLAGS += -fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined
-CFLAGS += -O2
+#CFLAGS += -O2
 
 all:	htsim_dumbell_ndp htsim_dumbell_ndptunnel htsim_dumbell_tcp htsim_dumbell_swift htsim_multihop_swift htsim_multihop_swift2 htsim_bidir_swift htsim_bidir_ndp htsim_multipath_swift htsim_trigger_test htsim_dumbell_roce htsim_dumbell_hpcc htsim_dumbell_strack
 
@@ -49,6 +49,9 @@ htsim_dumbell_ndptunnel:	main_dumbell_ndptunnel.o $(LIBDEP)
 
 htsim_trigger_test:	main_trigger_test.o $(LIBDEP)
 	$(CC) $(CFLAGS) main_trigger_test.o -o htsim_trigger_test $(LIBS)
+
+# htsim_fatree_hpcc: main_hpcc.o $(LIBDEP)
+# 	$(CC) $(CFLAGS) main_hpcc.o -o htsim_fatree_hpcc $(LIBS)
 
 RUN_TESTS_0 = ./tests.py
 RUN_TESTS_1 = ./tests.py -v

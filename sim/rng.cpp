@@ -8,7 +8,7 @@ static mt19937 random_engine;
 
 void srand(unsigned seed)
 {
-    random_engine = mt19937(seed);
+    random_engine = mt19937(seed);      // 伪随机生成器
 }
 
 int rand()

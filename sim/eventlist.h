@@ -21,6 +21,13 @@ protected:
     EventList& _eventlist;
 };
 
+
+/* multimap:  红黑树管理的键值对, 允许插入重复的 key, 因此 key-value 的映射是多对多的;
+ * Handler:   multimap <simtime(ps), EventSource> 的迭代器;
+ * EventList: 管理每个时间点的事件, 每个时间点可以注册多个事件, 由一个静态的变量全局管理
+ *            派生类同样会将事件注册到静态变量 _pendingsources;
+ *            此外, 维护了一个静态 vector 管理待处理的 TriggerTarget
+ */
 class EventList {
 public:
     typedef multimap <simtime_picosec, EventSource*>::iterator Handle;
@@ -47,11 +54,11 @@ public:
     void operator=(const EventList&) = delete;  // disable Assign Constructor
 
 private:
-    static simtime_picosec _endtime;
-    static simtime_picosec _lasteventtime;
+    static simtime_picosec _endtime;            // 仿真结束时间 
+    static simtime_picosec _lasteventtime;      // 最后时间时间
     typedef multimap <simtime_picosec, EventSource*> pendingsources_t;
-    static pendingsources_t _pendingsources;
-    static vector <TriggerTarget*> _pending_triggers;
+    static pendingsources_t _pendingsources;    // 时间到事件源的映射
+    static vector <TriggerTarget*> _pending_triggers;   // 待处理的 TriggerTarget 数组
 
     static int _instanceCount;
     static EventList* _theEventList;

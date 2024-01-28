@@ -27,6 +27,8 @@ class LosslessInputQueue;
 class RouteTable;
 
 
+/* Class switch 继承了 EventSource
+ */
 class Switch : public EventSource, public Drawable, public PacketSink {
  public:
     Switch(EventList& eventlist) : EventSource(eventlist, "none") { _name = "none"; _id = id++;};
@@ -39,18 +41,22 @@ class Switch : public EventSource, public Drawable, public PacketSink {
     virtual uint32_t getType() {return 0;}
 
     // inherited from PacketSink - only use when route strategy implies use of ECMP_FIB, i.e. the packet does not carry a full route. .
+    // 继承自 PacketSink - 仅当路由策略暗示使用 ECMP_FIB 时使用，即数据包不携带完整路由
     virtual void receivePacket(Packet& pkt) {abort();}
     virtual void receivePacket(Packet& pkt,VirtualQueue* prev) {abort();}
     virtual void doNextEvent() {abort();}
 
-    //used when route strategy is ECMP_FIB and variants. 
+    // used when route strategy is ECMP_FIB and variants. 
+    // packet 未携带完整路由, 使用 getNextHop 计算下一跳
     virtual Route* getNextHop(Packet& pkt) { return getNextHop(pkt, NULL);}
     virtual Route* getNextHop(Packet& pkt, BaseQueue* ingress_port) {abort();};
 
+    // 获取编号为 id 的 port 所对应的队列
     BaseQueue* getPort(int id) { assert(id >= 0); if ((unsigned int)id<_ports.size()) return _ports.at(id); else return NULL;}
 
     unsigned int portCount(){ return _ports.size();}
 
+    // 发送 PFC
     void sendPause(LosslessQueue* problem, unsigned int wait);
     void sendPause(LosslessInputQueue* problem, unsigned int wait);
 
@@ -62,12 +68,12 @@ class Switch : public EventSource, public Drawable, public PacketSink {
     virtual const string& nodename() {return _name;}
 
 protected:
-    vector<BaseQueue*> _ports;
-    uint32_t _id;
-    string _name;
+    vector<BaseQueue*> _ports;  // 端口 [队列]
+    uint32_t _id;               // 交换机编号
+    string _name;               // 交换机名称
 
-    RouteTable* _fib;
+    RouteTable* _fib;           // 路由表
  
-    static uint32_t id;
+    static uint32_t id;         // 用于全局记数的 id
 };
 #endif

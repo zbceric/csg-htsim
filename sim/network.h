@@ -199,6 +199,10 @@ class Packet {
     uint32_t _path_len; // length of the path in hops - used in BCube priority routing with NDP
 };
 
+/* 虚基类 PacketSink -> 对连接关系的抽象
+ * 1. 定义了接收 packet 后处理函数的函数签名 receivePacket;
+ * 2. 定义了对端, PacketSink* _remoteEndpoint, 因此 PacketSink 对象可以获取对端设备;
+ */
 class PacketSink {
  public:
     PacketSink() { _remoteEndpoint = NULL; }
@@ -214,7 +218,7 @@ class PacketSink {
 
     virtual const string& nodename()=0;
 
-    PacketSink* _remoteEndpoint;
+    PacketSink* _remoteEndpoint;    // 对端
 };
 
 

@@ -38,6 +38,11 @@ EventList::setEndtime(simtime_picosec endtime)
     EventList::_endtime = endtime;
 }
 
+/* 从全局的 _pending_triggers 的末尾取出一个 activate (类似 stack)
+ * 从全局的 _pendingsources 中取出最早的那个事件, 调用其 doNextEvent 函数
+ * main 函数中直接调用 while(EventList::doNextEvent()){}
+ * 先处理 trigger, 没有 trigger 就跟新时间, 取出新的 eventsource, 调用其 doNextEvent();
+ */
 bool
 EventList::doNextEvent() 
 {
@@ -63,6 +68,7 @@ EventList::doNextEvent()
 }
 
 
+/* 向 _pendingsources 插入一个 EventSource, 先检查 event 的结束时间是否在仿真停止时间之前 */
 void 
 EventList::sourceIsPending(EventSource &src, simtime_picosec when) 
 {
@@ -82,11 +88,13 @@ EventList::sourceIsPendingGetHandle(EventSource &src, simtime_picosec when)
     return _pendingsources.end();
 }
 
+/* 增加一个未处理的 TriggerTarget 到 _pending_triggers */
 void
 EventList::triggerIsPending(TriggerTarget &target) {
     _pending_triggers.push_back(&target);
 }
 
+/* 删除全部和 src 相关的 EventSource */
 void 
 EventList::cancelPendingSource(EventSource &src) {
     pendingsources_t::iterator i = _pendingsources.begin();
@@ -99,6 +107,7 @@ EventList::cancelPendingSource(EventSource &src) {
     }
 }
 
+/* 删除某个时间点上的全部 EventSource */
 void 
 EventList::cancelPendingSourceByTime(EventSource &src, simtime_picosec when) {
     // fast cancellation of a timer - the timer MUST exist
@@ -115,7 +124,7 @@ EventList::cancelPendingSourceByTime(EventSource &src, simtime_picosec when) {
     abort();
 }
 
-
+/* 删除迭代器对应的 EventSource */
 void EventList::cancelPendingSourceByHandle(EventSource &src, EventList::Handle handle) {
     // If we're cancelling timers often, cancel them by handle.  But
     // be careful - cancelling a handle that has already been
@@ -127,6 +136,7 @@ void EventList::cancelPendingSourceByHandle(EventSource &src, EventList::Handle 
     _pendingsources.erase(handle);
 }
 
+/* 移除 EventSource, 然后根据新的时间插入到 _pendingsources */
 void 
 EventList::reschedulePendingSource(EventSource &src, simtime_picosec when) {
     cancelPendingSource(src);

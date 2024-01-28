@@ -30,6 +30,19 @@
 #define DEBUG_PATH_STATS
 enum RouteStrategy {NOT_SET, SINGLE_PATH, SCATTER_PERMUTE, SCATTER_RANDOM, PULL_BASED, SCATTER_ECMP, ECMP_FIB, ECMP_FIB_ECN, REACTIVE_ECN};
 
+/* RouteStrategy: 路由策略
+ * 0: NOT_SET           [未设置路由策略] x
+ * 1: SINGLE_PATH       [仅选择一条路径传输] x
+ * 2: SCATTER_PERMUTE   [将数据分散在多条路径上传输]
+ * 3: SCATTER_RANDOM    [将数据随机分散到多条路径上传输]
+ * 4: PULL_BASED        [拉取]
+ * 5: SCATTER_ECMP      [等价多路径路由策略, 将数据分散到多个灯架路径上路由]
+ * 6: ECMP_FIB          [根据 FIB(Forwarding Information Base) 表使用等价多路径路由策略]
+ * 7: ECMP_FIB_ECN      [根据 FIB 表中的等价路径和 ECN 信息进行路由]
+ * 8: REACTIVE_ECN      [根据 ECN 携带的网络拥塞信息动态调整路由]
+ */
+
+
 class NdpSink;
 class NdpRTSPacer;
 class Switch;

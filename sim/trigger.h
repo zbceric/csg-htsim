@@ -29,6 +29,9 @@ public:
     virtual void activate() = 0;
 };
 
+/* Trigger: 由一个 id 标记, 每个 Trigger 包含一系列 TriggerTarget
+ * TriggerTarget: 一个 interface, 提供了一个 activate 函数接口, 其派生类调用 activate 激活
+ */
 class Trigger {
 public:
     Trigger(EventList& eventlist, triggerid_t id);
@@ -44,6 +47,9 @@ protected:
 // them all on the first call to activate().  Will abort if called
 // twice as most targets cannot be restarted.
 class SingleShotTrigger: public Trigger {
+/* SingleShotTrigger 采用一个或多个触发目标, 并在第一次调用 activate() 时将它们全部激活
+ * 如果调用两次将会中止，因为大多数目标无法重新启动。
+ */
 public:
     SingleShotTrigger(EventList& eventlist, triggerid_t id);
     virtual void activate();
@@ -55,6 +61,8 @@ private:
 // them sequentially when its own activate() is called.  Will abort if called
 // more than count.
 class MultiShotTrigger: public Trigger {
+/* MultiShotTrigger 在每次调用触发函数时, 将一个 TriggerTarget 写入 EventList 
+ */
 public:
     MultiShotTrigger(EventList& eventlist, triggerid_t id);
     virtual void activate();
@@ -66,6 +74,8 @@ private:
 // number of activations needed before it triggers.  Needs precisely
 // this many activations before it will fire.
 class BarrierTrigger: public Trigger {
+/* 需要指定次数触发, 随后才会将 TriggerTarget 全部写入 EventList
+ */
 public:
     BarrierTrigger(EventList& eventlist, triggerid_t id, size_t activations_needed);
     virtual void activate();

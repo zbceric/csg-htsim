@@ -11,6 +11,8 @@ ConnectionMatrix::ConnectionMatrix(uint32_t n)
   conns = NULL;
 }
 
+/* 创建 conn 个连接关系
+ */
 void ConnectionMatrix::setPermutation(uint32_t conn){
   setPermutation(conn,1);
 }
@@ -22,6 +24,10 @@ void ConnectionMatrix::addConnection(uint32_t src, uint32_t dest){
   connections[src]->push_back(dest);
 }
 
+/* 创建 conn 个连接关系
+ * 生成 N 个 src-dest 的 connection, src != dest
+ * 随机选择 conn 个 connection 写入 connections
+ */
 void ConnectionMatrix::setPermutation(uint32_t conn, uint32_t rack_size){
     //int is_dest[N];
     uint32_t dest,pos;
@@ -31,61 +37,67 @@ void ConnectionMatrix::setPermutation(uint32_t conn, uint32_t rack_size){
     vector<uint32_t> perm_tmp;
 
     rack_count = N/rack_size;
-    rack_load = (uint32_t*)calloc(rack_count,sizeof(uint32_t));
+    rack_load = (uint32_t*)calloc(rack_count,sizeof(uint32_t)); // 初始化一个全 0 的 uint32_t 数组
   
     for (uint32_t i=0; i<N; i++){
         //is_dest[i] = 0;
-        to[i] = -1;
-        perm_tmp.push_back(i);
+        to[i] = -1;                     // to 全 -1
+        perm_tmp.push_back(i);       // 0, 1, 2, ..., N-1
     }
 
+    /* 构建一个 to 数组, 表征全部 server 的连接关系
+     * to[i] 表示 server[i] 作为 src, server[to[i]] 作为 dest 创建一条连接
+     * assert (src!=dest) 可能存在分配失败的风险 ???
+     */
     for (uint32_t src = 0; src < N; src++) {
         do {
-            pos = rand()%perm_tmp.size();
+            pos = rand()%perm_tmp.size();   // 随机选择一个值
         } while(src==perm_tmp[pos]&&perm_tmp.size()>1);
 
-        dest = perm_tmp[pos];
+        dest = perm_tmp[pos];               // 保证 src 和 dest 不一致
         assert(src!=dest);
 
-        perm_tmp.erase(perm_tmp.begin()+pos);
+        perm_tmp.erase(perm_tmp.begin()+pos);   // 清除选定的元素, 复杂度很高 ???
         to[src] = dest;
     }
 
-    for (uint32_t i = 0; i<conn; i++){
-        if (!perm_tmp.size())
+    for (uint32_t i = 0; i<conn; i++){      // 选择 conn 个连接
+        if (!perm_tmp.size())               // conn > N 时
             for (uint32_t q=0; q<N; q++){
-                perm_tmp.push_back(q);
+                perm_tmp.push_back(q);   // 0, 1, 2, ..., N-1
             }
 
-        pos = rand()%perm_tmp.size();
+        pos = rand()%perm_tmp.size();       // 随机选择一个位置
 
         if (rack_count<N){
-            //int pos2 = rand()%perm_tmp.size();
+            //int pos2 = rand()%perm_tmp.size();    // 选择更小的 rack ?
 
             //if (rack_load[perm_tmp[pos]/rack_size]>rack_load[perm_tmp[pos2]/rack_size])
             //pos = pos2;
         }
 
-        uint32_t src = perm_tmp[pos];
+        uint32_t src = perm_tmp[pos];   // 随机选择一个 src
         printf("src=%d rack_size=%d\n", src, rack_size);
-        rack_load[src/rack_size]++;
+        rack_load[src/rack_size]++;     // 将 src 划入一个 rack, rack_load[rack]++
         perm_tmp.erase(perm_tmp.begin()+pos);
 
-        if (connections.find(src)==connections.end()){
+        if (connections.find(src)==connections.end()){  // 注意这里先检查了 src 有无对应的 vector, 允许 conns > N
             connections[src] = new vector<uint32_t>();
         }
-        connections[src]->push_back(to[src]);
+        connections[src]->push_back(to[src]);   // 将 connection 写入 connections 存储
     }
 
     cout << "Rack load: ";
     for (uint32_t i=0; i<rack_count; i++)
-        cout << rack_load[i] << " ";
+        cout << rack_load[i] << " ";        // 输出每个 rack 中 src 的数量
 
     cout <<endl;
 
     free(rack_load);
 }
 
+/* 创建 N 个连接关系, 要求 src != dst
+ */
 void ConnectionMatrix::setPermutation(){
     int is_dest[N];
     uint32_t dest;
@@ -93,12 +105,12 @@ void ConnectionMatrix::setPermutation(){
     for (uint32_t i=0; i<N; i++)
         is_dest[i] = 0;
 
-    for (uint32_t src = 0; src < N; src++) {
+    for (uint32_t src = 0; src < N; src++) { // 已经为前 src 个 connection 找到了 dst
         vector<uint32_t>* destinations = new vector<uint32_t>();
       
-        uint32_t r = rand()%(N-src);
-        for (dest = 0; dest<N; dest++){
-            if (r==0 && !is_dest[dest])
+        uint32_t r = rand()%(N-src);        // [0, N-src)
+        for (dest = 0; dest<N; dest++){     // 找到第 r 个 is_dest[dest] 非 0 的 server 作为 dest
+            if (r==0 && !is_dest[dest])     
                 break;
             if (!is_dest[dest]) {
                 assert(r>0);
@@ -111,7 +123,7 @@ void ConnectionMatrix::setPermutation(){
             exit(1);
         }
       
-        if (src == dest){
+        if (src == dest){   // 避免发送给自己
             //find first other destination that is different!
             do {
                 dest = (dest+1)%N;
@@ -123,13 +135,17 @@ void ConnectionMatrix::setPermutation(){
                 exit(1);
             }
         }
-        is_dest[dest] = 1;
+        is_dest[dest] = 1;      // 标记已经成为 dst 了, 其他 connection 不能将其作为 dst
         destinations->push_back(dest);
 
         connections[src] = destinations;    
     }
 }
 
+
+/* 前 conn 个 server 作为 src
+ * 将 id 相差 N/2 的 server 作为第一个 dest
+ */
 void ConnectionMatrix::setStride(uint32_t conns){
     for (uint32_t src = 0; src<conns; src++) {
         uint32_t dest = (src+N/2)%N;
@@ -139,6 +155,8 @@ void ConnectionMatrix::setStride(uint32_t conns){
     }
 }
 
+/* 打乱 src 和 dest
+ */
 void ConnectionMatrix::setPermutationShuffle(uint32_t conns){
     // we want random sources and destinations
     // we'll shuffle all the destinations for all possible sources, then pick the right number of connection afterwards
@@ -152,15 +170,16 @@ void ConnectionMatrix::setPermutationShuffle(uint32_t conns){
     }
 
     // Fisher-Yates shuffle of boths srcs and dsts
-    for (uint32_t src = 0; src<N-1; src++) {
+    // Fisher-Yates: 一种对有限序列进行洗牌的算法 [前 N-1 个位置洗牌后, 没必要操作最后一个位置]
+    for (uint32_t src = 0; src<N-1; src++) {        // 第 src 个位置
         // target between src+1 and N - 1 inclusive
-        uint32_t target = rand()%(N - (src + 1)) + src + 1;
-        uint32_t tmp = dsts[src];
+        uint32_t target = rand()%(N - (src + 1)) + src + 1; // 随机选择一个 server, 范围 [src+1, N)
+        uint32_t tmp = dsts[src];   // 交换 dest 数组中 src 和 target 位置的值
         dsts[src] = dsts[target];
         dsts[target] = tmp;
 
-        target = rand()%(N - (src + 1)) + src + 1;
-        tmp = srcs[src];
+        target = rand()%(N - (src + 1)) + src + 1;  // 随机选择一个 server
+        tmp = srcs[src];            // 交换 src  数组中 src 和 target 位置的值
         srcs[src] = srcs[target];
         srcs[target] = tmp;
     }
@@ -169,16 +188,19 @@ void ConnectionMatrix::setPermutationShuffle(uint32_t conns){
     vector<uint32_t> counts(N,0);
     for (uint32_t src = 0; src<N; src++) {
         counts[dsts[src]]++;
-        assert(counts[dsts[src]] <= 1);
-        assert(dsts[src] != src);
-        assert(dsts[src] < N);
+        assert(counts[dsts[src]] <= 1);     // dest 不能重复
+        assert(dsts[src] != src);           // src 和 dst 不能相同
+        assert(dsts[src] < N);              // dst 不能超出范围
     }
 
     // OK, we should have a shuffled set of N destinations, where no src sends to itself
     // we now use the first "conns" sources from our shuffled "srcs" vector
   
+    /* srcs[i] 和 dsts[i-1] 构成一条连接, 需要打乱 src 和 dst,
+     * 避免 connection 从前 conns 个 server 挑选
+     */
     for (uint32_t i = 0; i<conns; i++) {
-        connections[srcs[i]] = new vector<uint32_t>();
+        connections[srcs[i]] = new vector<uint32_t>();      // 注意这里是 new, 应该先释放原指针 ???
         // ensure we don't send to ourselves
         assert(srcs[i] != dsts[srcs[i]]);
         connections[srcs[i]]->push_back(dsts[srcs[i]]);
@@ -186,6 +208,10 @@ void ConnectionMatrix::setPermutationShuffle(uint32_t conns){
     }
 }
 
+/* 创建 Incast connection
+ * conns 个 src-dst 不重复的 connection
+ * 剩下的 N - connes 个 src 向一个 dst 发送
+ */
 void ConnectionMatrix::setPermutationShuffleIncast(uint32_t conns){
     // we want random sources and destinations
     // we'll shuffle all the destinations for all possible sources, then pick the right number of connection afterwards
@@ -194,11 +220,12 @@ void ConnectionMatrix::setPermutationShuffleIncast(uint32_t conns){
     vector<uint32_t> dsts(N,0); // list of dests (used to choose which dst each src sends to)
     // initialize everyone sending to themselves
     for (uint32_t src = 0;src<N; src++) {
-        srcs[src] = src;
-        dsts[src] = src;
+        srcs[src] = src;            // 0, 1, ..., N-1
+        dsts[src] = src;            // 0, 1, ..., N-1
     }
 
     // Fisher-Yates shuffle of boths srcs and dsts
+    // 打乱 srcs 和 dsts
     for (uint32_t src = 0;src<N-1; src++) {
         // target between src+1 and N - 1 inclusive
         uint32_t target = rand()%(N - (src + 1)) + src + 1;
@@ -223,7 +250,7 @@ void ConnectionMatrix::setPermutationShuffleIncast(uint32_t conns){
 
     // OK, we should have a shuffled set of N destinations, where no src sends to itself
     // we now use the first "conns" sources from our shuffled "srcs" vector
-  
+    // 将 src-dst 写入 connections
     for (uint32_t i = 0;i<conns; i++) {
         connections[srcs[i]] = new vector<uint32_t>();
         // ensure we don't send to ourselves
@@ -232,7 +259,8 @@ void ConnectionMatrix::setPermutationShuffleIncast(uint32_t conns){
         cout << "Src " << srcs[i] << " Dst " << dsts[srcs[i]] << endl;
     }
 
-    //do an incast from the remainder nodes to one idle destination
+    // do an incast from the remainder nodes to one idle destination
+    // 剩下的 N-conns src 都想 dst[src[conns]] 发送
     for (uint32_t i = conns;i<N; i++) {
         connections[srcs[i]] = new vector<uint32_t>();
         // ensure we don't send to ourselves
@@ -253,6 +281,8 @@ void ConnectionMatrix::setLocalTraffic(Topology* top){
     }
 }
 
+/* 随机生成 src-dst connection, 不要求 src != dest, 不要求 src 和 dest 不重复
+ */
 void ConnectionMatrix::setRandom(uint32_t cnx){
     for (uint32_t conn = 0;conn<cnx; conn++) {
         uint32_t src = rand()%N;
@@ -300,6 +330,8 @@ void ConnectionMatrix::setVL2(){
     }
 }
 
+/* 将 connections 中存储的连接转换为 vector 返回
+ */
 vector<connection*>* ConnectionMatrix::getAllConnections(){
     if (conns!=NULL){
         //conns is initialized from file or from the old connections vector. 
@@ -927,6 +959,9 @@ bool ConnectionMatrix::load(istream& file){
 }
 
 
+/* 根据 id 索引 trigger 指针
+ * 根据 trigger_type 生成指定类型的 Trigger 变量
+ */
 Trigger*
 ConnectionMatrix::getTrigger(triggerid_t id, EventList& eventlist) {
     struct trigger* t = triggers.at(id);

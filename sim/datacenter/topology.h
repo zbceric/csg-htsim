@@ -4,6 +4,13 @@
 #include "network.h"
 #include "loggers.h"
 
+/* Topology: 网络拓扑结构的 interface
+ * 提供的接口
+ * get_paths: input(src, dst), outout(一个 vector 指针, vector 中存储了路由路径)
+ * get_bidir_paths: input(src, dst, reverse), output(一个 vector 指针, vector 中存储了路由路径)
+ * no_of_nodes: output(node 数量)
+ * add_switch_loggers: 添加交换机的 logger
+ */
 class Topology {
 public:
     virtual vector<const Route*>* get_paths(uint32_t src, uint32_t dest) {

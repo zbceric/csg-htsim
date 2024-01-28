@@ -34,6 +34,8 @@ uint32_t FatTreeTopology::_bundlesize[] = {1,1,1};
 uint32_t FatTreeTopology::_oversub[] = {1,1,1};
 linkspeed_bps FatTreeTopology::_downlink_speeds[] = {0,0,0};
 
+
+/* 设置某一层的参数 */
 void
 FatTreeTopology::set_tier_parameters(int tier, int radix_up, int radix_down, mem_b queue_up, mem_b queue_down, int bundlesize, linkspeed_bps linkspeed, int oversub) {
     // tier is 0 for ToR, 1 for agg switch, 2 for core switch
@@ -50,20 +52,21 @@ FatTreeTopology::set_tier_parameters(int tier, int radix_up, int radix_down, mem
     // xxx what to do about queue sizes
 }
 
+// 使用 config file 配置拓扑结构
 // load a config file and use it to create a FatTreeTopology
 FatTreeTopology* FatTreeTopology::load(const char * filename, QueueLoggerFactory* logger_factory, EventList& eventlist, mem_b queuesize, queue_type q_type, queue_type sender_q_type){
     std::ifstream file(filename);
     if (file.is_open()) {
-        FatTreeTopology* ft = load(file, logger_factory, eventlist, queuesize, q_type, sender_q_type);
+        FatTreeTopology* ft = load(file, logger_factory, eventlist, queuesize, q_type, sender_q_type);  // 将 filename 转为 ifstream
         file.close();
-	return ft;
+	    return ft;
     } else {
         cerr << "Failed to open FatTree config file " << filename << endl;
         exit(1);
     }
 }
 
-// in-place conversion to lower case
+// in-place conversion to lower case - 将字符串中的内容全部转换为小写
 void to_lower(string& s) {
     string::iterator i;
     for (i = s.begin(); i != s.end(); i++) {
@@ -73,6 +76,7 @@ void to_lower(string& s) {
         //[](unsigned char c){ return std::tolower(c); });
 }
 
+// 从打开的文件中配置 FatTree 拓扑
 FatTreeTopology* FatTreeTopology::load(istream& file, QueueLoggerFactory* logger_factory, EventList& eventlist, mem_b queuesize, queue_type q_type, queue_type sender_q_type){
     //cout << "topo load start\n";
     std::string line;
@@ -128,7 +132,7 @@ FatTreeTopology* FatTreeTopology::load(istream& file, QueueLoggerFactory* logger
     do {
         linecount++;
         vector<string> tokens;
-	tokenize(line, ' ', tokens);
+	    tokenize(line, ' ', tokens);
         if (tokens.size() < 1) {
             continue;
     	}
@@ -243,12 +247,13 @@ FatTreeTopology* FatTreeTopology::load(istream& file, QueueLoggerFactory* logger
     return ft;
 }
 
+/* 创建 fatTree 拓扑 */
 FatTreeTopology::FatTreeTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b queuesize,
                                  QueueLoggerFactory* logger_factory,
-                                 EventList* ev,FirstFit * fit,queue_type q, simtime_picosec latency, simtime_picosec switch_latency, queue_type snd){
+                                 EventList* ev, FirstFit * fit, queue_type q, simtime_picosec latency, simtime_picosec switch_latency, queue_type snd){
     
-    set_linkspeeds(linkspeed);
-    set_queue_sizes(queuesize);
+    set_linkspeeds(linkspeed);      // 设置链路速率
+    set_queue_sizes(queuesize);     // 设置队列长度
     _logger_factory = logger_factory;
     _eventlist = ev;
     ff = fit;
@@ -279,7 +284,7 @@ FatTreeTopology::FatTreeTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, 
             cout << "." << endl;
         }
     }
-    set_params(no_of_nodes);
+    set_params(no_of_nodes);        // 根据结点数量设置网络的拓扑信息
 
     init_network();
 }
@@ -361,21 +366,24 @@ FatTreeTopology::FatTreeTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, 
     init_network();
 }
 
+/* 设置链路速度 */
 void FatTreeTopology::set_linkspeeds(linkspeed_bps linkspeed) {
-    if (linkspeed != 0 && _downlink_speeds[TOR_TIER] != 0) {
+    if (linkspeed != 0 && _downlink_speeds[TOR_TIER] != 0) {    // 不要在构造函数和 set 函数中重复设置 linkspeed, 使用其中一个方法
         cerr << "Don't set linkspeeds using both the constructor and set_tier_parameters - use only one of the two\n";
         exit(1);
     }
-    if (linkspeed == 0 && _downlink_speeds[TOR_TIER] == 0) {
+    if (linkspeed == 0 && _downlink_speeds[TOR_TIER] == 0) {    // 未设置速率
         cerr << "Linkspeed is not set, either as a default or by constructor\n";
         exit(1);
     }
     // set tier linkspeeds if no defaults are specified
+    // 若没有设置默认值, 设置 linkspeed
     if (_downlink_speeds[TOR_TIER] == 0) {_downlink_speeds[TOR_TIER] = linkspeed;}
     if (_downlink_speeds[AGG_TIER] == 0) {_downlink_speeds[AGG_TIER] = linkspeed;}
     if (_downlink_speeds[CORE_TIER] == 0) {_downlink_speeds[CORE_TIER] = linkspeed;}
 }
 
+/* 设置队列长度 */
 void FatTreeTopology::set_queue_sizes(mem_b queuesize) {
     if (queuesize != 0) {
         // all tiers use the same queuesize
@@ -391,7 +399,7 @@ void FatTreeTopology::set_queue_sizes(mem_b queuesize) {
 }
 
 void FatTreeTopology::set_custom_params(uint32_t no_of_nodes) {
-    //cout << "set_custom_params" << endl;
+    // cout << "set_custom_params" << endl;
     // do some sanity checking before we proceed
     assert(_hosts_per_pod > 0);
 
@@ -534,7 +542,7 @@ void FatTreeTopology::set_params(uint32_t no_of_nodes) {
     _no_of_nodes = 0;
     int K = 0;
     if (_tiers == 3) {
-        while (_no_of_nodes < no_of_nodes) {
+        while (_no_of_nodes < no_of_nodes) {    // 通过循环计算 k 值
             K++;
             _no_of_nodes = K * K * K /4;
         }
@@ -544,11 +552,11 @@ void FatTreeTopology::set_params(uint32_t no_of_nodes) {
             exit(1);
         }
         int NK = (K*K/2);
-        NSRV = (K*K*K/4);
-        NTOR = NK;
-        NAGG = NK;
-        NPOD = K;
-        NCORE = (K*K/4);
+        NSRV = (K*K*K/4);           // server 总数
+        NTOR = NK;                  // TOR 交换机
+        NAGG = NK;                  // 汇聚层交换机
+        NPOD = K;                   // POD (vlan) 域
+        NCORE = (K*K/4);            // 核心层交换机数量
     } else if (_tiers == 2) {
         // We want a leaf-spine topology
         while (_no_of_nodes < no_of_nodes) {
@@ -561,7 +569,7 @@ void FatTreeTopology::set_params(uint32_t no_of_nodes) {
             exit(1);
         }
         int NK = K;
-        NSRV = K * K /2;
+        NSRV = K * K /2;        
         NTOR = NK;
         NAGG = NK/2;
         NPOD = 1;
@@ -580,21 +588,23 @@ void FatTreeTopology::set_params(uint32_t no_of_nodes) {
     assert(_radix_down[TOR_TIER] == 0); 
     assert(_radix_up[TOR_TIER] == 0);
     
-    _radix_down[TOR_TIER] = K/2;
-    _radix_up[TOR_TIER] = K/2;
-    _radix_down[AGG_TIER] = K/2;
-    _radix_up[AGG_TIER] = K/2;
-    _radix_down[CORE_TIER] = K;
+    // radix: 基数
+    _radix_down[TOR_TIER] = K/2;        // TOR 交换机有 k/2 个端口用于向下层的 Host 连接
+    _radix_up[TOR_TIER] = K/2;          // TOR 交换机有 k/2 个端口用于向上层的 AGG 交换机连接
+    _radix_down[AGG_TIER] = K/2;        // AGG 交换机有 k/2 个端口用于向下层的 TOR 交换机连接
+    _radix_up[AGG_TIER] = K/2;          // AGG 交换机有 k/2 个端口用于向上层的 COR 交换机连接
+    _radix_down[CORE_TIER] = K;         // COR 交换机有  k  个端口用于与下层的 AGG 交换机连接
     assert(_hosts_per_pod == 0);
-    _tor_switches_per_pod = K/2;
-    _agg_switches_per_pod = K/2;
-    _hosts_per_pod = _no_of_nodes / NPOD;
+    _tor_switches_per_pod = K/2;            // 每个 POD 的 TOR 交换机数量
+    _agg_switches_per_pod = K/2;            // 每个 POD 的 AGG 交换机数量
+    _hosts_per_pod = _no_of_nodes / NPOD;   // 每个 POD 的 HOST数量
 
     alloc_vectors();
 }
 
+/* 设置各层交换机数量以及 Pipe / Queue */
 void FatTreeTopology::alloc_vectors() {
-
+    // 设置交换机规模
     switches_lp.resize(NTOR,NULL);
     switches_up.resize(NAGG,NULL);
     switches_c.resize(NCORE,NULL);
@@ -702,8 +712,11 @@ FatTreeTopology::alloc_queue(QueueLogger* queueLogger, linkspeed_bps speed, mem_
     }
 }
 
+
+// 初始化网络
 void FatTreeTopology::init_network(){
     QueueLogger* queueLogger;
+    // 对于三层网络结构, 将 CORE-AGG 和 AGG-CORE 之间的 queue 和 pipe 的指针设置为 NULL
     if (_tiers == 3) {
         for (uint32_t j=0;j<NCORE;j++) {
             for (uint32_t k=0;k<NAGG;k++) {
@@ -717,6 +730,7 @@ void FatTreeTopology::init_network(){
         }
     }
     
+    // 对于三层和两层的网络结构, AGG-TOR 和 TOR-AGG 之间的 queue 和 pipe 都需要初始化
     for (uint32_t j=0;j<NAGG;j++) {
         for (uint32_t k=0;k<NTOR;k++) {
             for (uint32_t b = 0; b < _bundlesize[AGG_TIER]; b++) {
@@ -727,7 +741,8 @@ void FatTreeTopology::init_network(){
             }
         }
     }
-    
+
+    // 对于三层和两层的网络结构, TOR-HOST 和 HOST-TOR 之间的 queue 和 pipe 都需要初始化
     for (uint32_t j=0;j<NTOR;j++) {
         for (uint32_t k=0;k<NSRV;k++) {
             for (uint32_t b = 0; b < _bundlesize[TOR_TIER]; b++) { 
@@ -739,8 +754,9 @@ void FatTreeTopology::init_network(){
         }
     }
 
-    //create switches if we have lossless operation
-    //if (_qt==LOSSLESS)
+    // 创建交换机, 如果配置了各层交换机延迟, 就使用 _switch_latencies, 否则使用全局延迟 _switch_latency
+    // create switches if we have lossless operation
+    // if (_qt==LOSSLESS)
     // changed to always create switches
     for (uint32_t j=0;j<NTOR;j++){
         simtime_picosec switch_latency = (_switch_latencies[TOR_TIER] > 0) ? _switch_latencies[TOR_TIER] : _switch_latency;
@@ -757,17 +773,18 @@ void FatTreeTopology::init_network(){
       
     // links from lower layer pod switch to server
     for (uint32_t tor = 0; tor < NTOR; tor++) {
-        uint32_t link_bundles = _radix_down[TOR_TIER]/_bundlesize[TOR_TIER];
-        for (uint32_t l = 0; l < link_bundles; l++) {
-            uint32_t srv = tor * link_bundles + l;
-            for (uint32_t b = 0; b < _bundlesize[TOR_TIER]; b++) {
+        uint32_t link_bundles = _radix_down[TOR_TIER]/_bundlesize[TOR_TIER];    // 连通下层设备的 link / 连通设备所绑定的 link 数量
+        for (uint32_t l = 0; l < link_bundles; l++) {       // TOR 设备向下连接的 HOST 数量
+            uint32_t srv = tor * link_bundles + l;          // 遍历 TOR[l] 连通的全部 HOST
+            for (uint32_t b = 0; b < _bundlesize[TOR_TIER]; b++) {      // 遍历 bundle 到一起的 link (它们连通相同的设备)
                 // Downlink
                 if (_logger_factory) {
-                    queueLogger = _logger_factory->createQueueLogger();
+                    queueLogger = _logger_factory->createQueueLogger(); // 局部变量
                 } else {
                     queueLogger = NULL;
                 }
             
+                // 设置 queue 和 pipe
                 queues_nlp_ns[tor][srv][b] = alloc_queue(queueLogger, _queue_down[TOR_TIER], DOWNLINK, TOR_TIER, true);
                 queues_nlp_ns[tor][srv][b]->setName("LS" + ntoa(tor) + "->DST" +ntoa(srv) + "(" + ntoa(b) + ")");
                 //if (logfile) logfile->writeName(*(queues_nlp_ns[tor][srv]));
@@ -787,7 +804,7 @@ void FatTreeTopology::init_network(){
                 //cout << queues_ns_nlp[srv][tor][b]->str() << endl;
                 //if (logfile) logfile->writeName(*(queues_ns_nlp[srv][tor]));
 
-                queues_ns_nlp[srv][tor][b]->setRemoteEndpoint(switches_lp[tor]);
+                queues_ns_nlp[srv][tor][b]->setRemoteEndpoint(switches_lp[tor]);        // 队列的远端是 tor 交换机
 
                 assert(switches_lp[tor]->addPort(queues_nlp_ns[tor][srv][b]) < 96);
 
@@ -800,6 +817,7 @@ void FatTreeTopology::init_network(){
                 pipes_ns_nlp[srv][tor][b]->setName("Pipe-SRC" + ntoa(srv) + "->LS" + ntoa(tor) + "(" + ntoa(b) + ")");
                 //if (logfile) logfile->writeName(*(pipes_ns_nlp[srv][tor]));
             
+                // 在 ff 中添加队列
                 if (ff){
                     ff->add_queue(queues_nlp_ns[tor][srv][b]);
                     ff->add_queue(queues_ns_nlp[srv][tor][b]);
@@ -1338,6 +1356,7 @@ void FatTreeTopology::print_path(std::ofstream &paths,uint32_t src,const Route* 
     paths << endl;
 }
 
+/* 为全部 switch 添加 logger, 用于记录队列大小 */
 void FatTreeTopology::add_switch_loggers(Logfile& log, simtime_picosec sample_period) {
     for (uint32_t i = 0; i < NTOR; i++) {
         switches_lp[i]->add_logger(log, sample_period);

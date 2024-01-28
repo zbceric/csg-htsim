@@ -9,6 +9,13 @@
 #define HOST_NIC 100000 // host nic speed in Mbps
 #define CORE_TO_HOST 4
 
+/* 定义基础的网络拓扑, 典型的三层拓扑
+ * NI: 核心层
+ * NA: 汇聚层交换机
+ * NT: 接入层 TOR 交换机
+ * NS: 每台 TOR 交换机连接的服务器数量
+ */
+
 //basic setup!
 
 

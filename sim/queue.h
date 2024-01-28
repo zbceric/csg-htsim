@@ -22,6 +22,8 @@
 // disciplines. 
 class Switch;
 
+/* 虚类 BaseQueue
+ */
 class BaseQueue  : public EventSource, public PacketSink, public Drawable {
  public:
     BaseQueue(linkspeed_bps bitrate, EventList &eventlist, QueueLogger* logger);
@@ -68,16 +70,16 @@ class BaseQueue  : public EventSource, public PacketSink, public Drawable {
 
 protected:
     // Housekeeping
-    PacketSink* _next_sink; // used in generic topology for linkage
+    PacketSink* _next_sink;         // used in generic topology for linkage
     QueueLogger* _logger;
-    linkspeed_bps _bitrate; 
-    simtime_picosec _ps_per_byte;  // service time, in picoseconds per byte
+    linkspeed_bps _bitrate;         // 发送速率
+    simtime_picosec _ps_per_byte;   // service time, in picoseconds per byte [服务时间, 单位 ps/byte]
     string _nodename;
     
-    CircularBuffer<simtime_picosec> _busystart;
-    CircularBuffer<simtime_picosec> _busyend;
+    CircularBuffer<simtime_picosec> _busystart;     // 队列
+    CircularBuffer<simtime_picosec> _busyend;       // 队列
 
-    //how much time have we spent being busy in the current measurement window?
+    // how much time have we spent being busy in the current measurement window?
     simtime_picosec _busy;
     simtime_picosec _idle;
     simtime_picosec _window;
@@ -85,7 +87,7 @@ protected:
     simtime_picosec _last_update_qs, _last_update_utilization;
     uint8_t _last_qs, _last_utilization;
 
-    Switch* _switch;//which switch is this queue part of?
+    Switch* _switch;                // which switch is this queue part of?
 };
 
 

@@ -9,6 +9,7 @@
 
 uint32_t Switch::id = 0;
 
+/* 怎加一个端口: 需要按顺序添加 ??? */
 int Switch::addPort(BaseQueue* q){
     _ports.push_back(q);
     q->setSwitch(this);
@@ -20,14 +21,14 @@ void Switch::sendPause(LosslessQueue* problem, unsigned int wait){
     cout << "Switch " << _name << " link " << problem->_name << " blocked, sending pause " << wait << endl;
 
     for (size_t i = 0;i < _ports.size();i++){
-        LosslessQueue* q = (LosslessQueue*)_ports.at(i);
+        LosslessQueue* q = (LosslessQueue*)_ports.at(i);    // 查找端口
     
-        if (q==problem || !(q->getRemoteEndpoint()))
+        if (q==problem || !(q->getRemoteEndpoint()))        // e.g. 端口 0 触发 PFC, 除了 0 以外的端口向上游发送一个 PFC
             continue;
 
         cout << "Informing " << q->_name << endl;
-        EthPausePacket* pkt = EthPausePacket::newpkt(wait,_id);
-        q->getRemoteEndpoint()->receivePacket(*pkt);
+        EthPausePacket* pkt = EthPausePacket::newpkt(wait,_id); // 生成 PFC packet
+        q->getRemoteEndpoint()->receivePacket(*pkt);    //发送给上游交换机 (remote endpoint), 直接拿到上游 switch 指针调用 recv
     }
 };
 

@@ -44,7 +44,7 @@ string itoa(uint64_t n);
 #define USE_FIRST_FIT 0
 #define FIRST_FIT_INTERVAL 100
 
-EventList eventlist;
+EventList eventlist;        // 定义一个 global variable
 
 void exit_error(char* progr) {
     cout << "Usage " << progr << " [-nodes N]\n\t[-conns C]\n\t[-q queue_size]\n\t[-queue_type composite|random|lossless|lossless_input|]\n\t[-tm traffic_matrix_file]\n\t[-strat route_strategy (single,\n\tecmp_host,ecmp_ar,\n\tecmp_host_ar ar_thresh)]\n\t[-log log_level]\n\t[-seed random_seed]\n\t[-end end_time_in_usec]\n\t[-mtu MTU]\n\t[-hop_latency x] per hop wire latency in us,default 1\n\t[-switch_latency x] switching latency in us, default 0\n\t[-start_delta] time in us to randomly delay the start of connections\n\t[-pfc_thresholds low high]" << endl;
@@ -216,7 +216,7 @@ int main(int argc, char **argv) {
             cout << "Adaptive routing sticky delta " << ar_sticky_delta << "us" << endl;
             i++;
         }
-         else if (!strcmp(argv[i],"-pfc_thresholds")){
+        else if (!strcmp(argv[i],"-pfc_thresholds")){
             low_pfc = atoi(argv[i+1]);
             high_pfc = atoi(argv[i+2]);
             cout << "PFC thresholds high " << high_pfc << " low " << low_pfc << endl;

@@ -2,6 +2,7 @@
 #ifndef LOGGERTYPES_H
 #define LOGGERTYPES_H
 #include <vector>
+#include "config.h"
 
 class Packet;
 class PacketFlow;
@@ -23,6 +24,13 @@ class RawLogEvent;
 class Logged;
 
 // keep track of all logged items so we can do ID->Name mapping later
+/* LoggedManager: Logged 管理类;
+ * 内置一个 vector, 管理 Logged 指针;
+ * Logged 类中设置了一个静态的 LoggedManager 变量, 管理全部的 Logged 类和 Logged 派生类;
+ *
+ * add_logged: 向 vector 中加入一个 logged;
+ * dump_idmap: 打印 vector 中的全部 logged 信息到 idmap.txt;
+ */
 class LoggedManager {
 public:
     LoggedManager();
@@ -32,6 +40,11 @@ private:
     vector<Logged*> _idmap;
 };
 
+
+/* Logged 由 id 和 name 组成;
+ * 每创建一条 Logged, static id + 1;
+ * dump_idmap: 调用 LoggedManager 的 dump_idmap 方法打印 logged, 通常在 Starting simulation 之前调用;
+ */
 class Logged {
  public:
     typedef uint32_t id_t;
@@ -50,6 +63,11 @@ class Logged {
     static LoggedManager _logged_manager;
 };
 
+/* EventType: 枚举了不同的事件
+ * 每个派生类定义了子事件, 以及事件的处理方法
+ * 在 loggers.h 中进一步派生类 Logger 的孙子类
+ * e.g. Logger -> TcpLogger -> TcpLoggerSimple 
+ */
 class Logger {
     friend class Logfile;
  public:

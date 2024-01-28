@@ -9,6 +9,14 @@
 
 #include <vector>
 
+/* class CircularBuffer: 循环缓冲区;
+ * 使用 vector 作为底层容器, 可调整大小;
+ * 用于实现队列队, 不关心之后的空间回收
+ * 
+ * 采用循环方式存储, 当尾部存储满了, 就循环回头部存储,
+ * 现有空间满了, 申请额外空间, 同时把循环存储的数据归位,
+ * 本质上是使用 vector 实现的先进先出队列
+ */
 template<typename T>
 class CircularBuffer {
 public:
@@ -18,7 +26,7 @@ public:
         _next_push = 0;
         _next_pop = 0;
         _size = 8; // initial size; we'll resize if needed
-        _queue.resize(_size);
+        _queue.resize(_size);       // 默认大小为 8
     }
     CircularBuffer(int starting_size) 
     {
@@ -36,11 +44,11 @@ public:
         _count++;
         if (_count == _size) {
             size_t newsize = _size*2;
-            _queue.resize(newsize);
-            if (_next_push < _next_pop) {
+            _queue.resize(newsize);             // vector 已满, size 翻倍
+            if (_next_push < _next_pop) {       // 出现了循环 [新元素插到最前面]
                 //   456789*123
                 // NI *, NP 1
-                for (int i=0; i < _next_push; i++) {
+                for (int i=0; i < _next_push; i++) {    // 把循环的部分移动到新申请的空间
                     // move 4-9 into new space
                     _queue[_size+i] = _queue[i];
                 }

@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
     linkspeed_bps linkspeed = speedFromMbps((double)HOST_NIC);
     int packet_size = 9000;
     uint32_t path_entropy_size = 10000000;
-    uint32_t no_of_conns = 0, no_of_nodes = DEFAULT_NODES;
+    uint32_t no_of_conns = 0, no_of_nodes = DEFAULT_NODES;      // no_of_conns: 连接数量; no_of_nodes: server node 数量 (默认 432)
     double logtime = 0.25; // ms;
     stringstream filename(ios_base::out);
     simtime_picosec hop_latency = timeFromUs((uint32_t)1);
@@ -199,8 +199,7 @@ int main(int argc, char **argv) {
             ar_sticky_delta = atof(argv[i+1]);
             cout << "Adaptive routing sticky delta " << ar_sticky_delta << "us" << endl;
             i++;
-        }
-         else if (!strcmp(argv[i],"-pfc_thresholds")){
+        } else if (!strcmp(argv[i],"-pfc_thresholds")){
             low_pfc = atoi(argv[i+1]);
             high_pfc = atoi(argv[i+2]);
             cout << "PFC thresholds high " << high_pfc << " low " << low_pfc << endl;
@@ -342,9 +341,11 @@ int main(int argc, char **argv) {
         qlf = new QueueLoggerFactory(&logfile, QueueLoggerFactory::LOGGER_EMPTY, eventlist);
         qlf->set_sample_period(timeFromUs(10.0));
     }
+
+/* x. 根据宏定义创建不同类型的数据中心网络拓扑 */
 #ifdef FAT_TREE
     FatTreeTopology* top = new FatTreeTopology(no_of_nodes, linkspeed, queuesize, qlf, 
-                                               &eventlist,NULL,qt,hop_latency,switch_latency,snd_type);
+                                               &eventlist,NULL, qt,hop_latency, switch_latency,snd_type);
 #endif
 
 #ifdef OV_FAT_TREE
@@ -372,24 +373,27 @@ int main(int argc, char **argv) {
         top->add_switch_loggers(logfile, timeFromUs(20.0));
     }
 
-    vector<const Route*>*** net_paths;
+    /* 创建 path */
+    vector<const Route*>*** net_paths;          // 三维数组 [src][dst][]
     net_paths = new vector<const Route*>**[no_of_nodes];
 
-    int **path_refcounts;
+    int **path_refcounts;                       // 二维数组 [res][dst], 统计 connection 中引用该路径的次数
     path_refcounts = new int*[no_of_nodes];
 
-    int* is_dest = new int[no_of_nodes];
+    int* is_dest = new int[no_of_nodes];        // 一维数组 [nodes]
     
+    /* 遍历全部结点 */
     for (size_t s = 0; s < no_of_nodes; s++) {
         is_dest[s] = 0;
         net_paths[s] = new vector<const Route*>*[no_of_nodes];
         path_refcounts[s] = new int[no_of_nodes];
         for (size_t d = 0; d < no_of_nodes; d++) {
             net_paths[s][d] = NULL;
-            path_refcounts[s][d] = 0;
+            path_refcounts[s][d] = 0;           // 引用次数设置为 0
         }
     }
     
+    /* 创建 no_of_nodes 个 server node */
     ConnectionMatrix* conns = new ConnectionMatrix(no_of_nodes);
 
     if (tm_file){
@@ -413,14 +417,16 @@ int main(int argc, char **argv) {
     // used just to print out stats data at the end
     //list <const Route*> routes;
 
+    /* 获取全部 connections */
     all_conns = conns->getAllConnections();
     vector <HPCCSrc*> hpcc_srcs;
 
+    /* 遍历 all_conns */
     for (size_t c = 0; c < all_conns->size(); c++){
         connection* crt = all_conns->at(c);
         int src = crt->src;
         int dest = crt->dst;
-        path_refcounts[src][dest]++;
+        path_refcounts[src][dest]++;        // path 引用次数 + 1
         path_refcounts[dest][src]++;
                         
         if (!net_paths[src][dest]&&route_strategy!=ECMP_FIB) {

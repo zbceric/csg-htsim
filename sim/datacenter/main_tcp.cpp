@@ -67,7 +67,7 @@ void print_path(std::ofstream &paths,const Route* rt){
 }
 
 int main(int argc, char **argv) {
-    eventlist.setEndtime(timeFromSec(4));
+    eventlist.setEndtime(timeFromSec(4));       // 仿真时间 4s
     Clock c(timeFromSec(50 / 100.), eventlist);
     linkspeed_bps linkspeed = speedFromMbps((double)HOST_NIC);
     int algo = COUPLED_EPSILON;

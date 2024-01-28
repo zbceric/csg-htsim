@@ -16,6 +16,7 @@
 
 //#define N K*K*K/4
 
+// Queue Type
 #ifndef QT
 #define QT
 typedef enum {UNDEFINED, RANDOM, ECN, COMPOSITE, PRIORITY,
@@ -29,20 +30,38 @@ typedef enum {UPLINK, DOWNLINK} link_direction;
 #define AGG_TIER 1
 #define CORE_TIER 2
 
+/* FatTreeTopology 胖树拓扑
+ * K 元 FatTree 拓扑
+ * 每台交换机有 k 个端口
+ * 核心层有 (k/2)^2 个交换机
+ * 一共有 k 个 pod, 每个 pod 有 k/2 个汇聚层交换机和 k/2 个接入层交换机
+ * 每台接入层交换机连接 k/2 个 host, 共容纳 k^3/4 个 server
+ *
+ * up: 从下层到上层, down: 从上层到下层, 对于 Queue/Pipe 都是分开管理两个方向的链路
+ * bundlesize: 从本层结点到下层结点, link 的数量
+ * 描述了逻辑上的连通由若干个实际 link 组成, 例如 ToR[0]-Agg[0], 由 8 个 queue/pipe 组成 
+ * radix 描述了一台交换机, 用于向上向下连通的 link 数量 (不是连通的结点数量)
+ * 
+ * ??? 大量关键数据是 static 的
+ */
 class FatTreeTopology: public Topology{
 public:
-    vector <Switch*> switches_lp;
-    vector <Switch*> switches_up;
-    vector <Switch*> switches_c;
+    // 交换机
+    vector <Switch*> switches_lp;       // 接入层交换机
+    vector <Switch*> switches_up;       // 汇聚层交换机
+    vector <Switch*> switches_c;        // 核心层交换机
 
+    // 下行链路
+    // 描述了一个连通关系, 本质是二维数组, 但考虑到具体的连通可能由多个网线组成, 因此用第三维度描述物理链路数量
     // 3rd index is link number in bundle
-    vector< vector< vector<Pipe*> > > pipes_nc_nup;
-    vector< vector< vector<Pipe*> > > pipes_nup_nlp;
-    vector< vector< vector<Pipe*> > > pipes_nlp_ns;
-    vector< vector< vector<BaseQueue*> > > queues_nc_nup;
-    vector< vector< vector<BaseQueue*> > > queues_nup_nlp;
-    vector< vector< vector<BaseQueue*> > > queues_nlp_ns;
+    vector< vector< vector<Pipe*> > > pipes_nc_nup;             // 三维数组: [Cor][Agg][bundle] Pipe*
+    vector< vector< vector<Pipe*> > > pipes_nup_nlp;            // 三维数组: [Agg][Tor][bundle] Pipe*
+    vector< vector< vector<Pipe*> > > pipes_nlp_ns;             // 三维数组: [Tor][Srv][bundle] Pipe*
+    vector< vector< vector<BaseQueue*> > > queues_nc_nup;       // 三维数组: [Cor][Agg][bundle] BaseQueue*
+    vector< vector< vector<BaseQueue*> > > queues_nup_nlp;      // 三维数组: [Agg][Tor][bundle] BaseQueue*
+    vector< vector< vector<BaseQueue*> > > queues_nlp_ns;       // 三维数组: [Tor][Srv][bundle] BaseQueue*
 
+    // 上行链路
     vector< vector< vector<Pipe*> > > pipes_nup_nc;
     vector< vector< vector<Pipe*> > > pipes_nlp_nup;
     vector< vector< vector<Pipe*> > > pipes_ns_nlp;
@@ -114,24 +133,27 @@ public:
     // add loggers to record total queue size at switches
     virtual void add_switch_loggers(Logfile& log, simtime_picosec sample_period); 
 
+    // 计算 HOST 属于哪个 TOR 交换机
     uint32_t HOST_POD_SWITCH(uint32_t src){
-        return src/_radix_down[TOR_TIER];
+        return src/_radix_down[TOR_TIER];       // src 编号 / TOR 交换机连接的 host 数量
     }
 
+    // 计算 HOST 在 POD 中的编号
     uint32_t HOST_POD_ID(uint32_t src){
         if (_tiers == 3)
             return src%_hosts_per_pod;
         else
             // only one pod in leaf-spine
-            return src;
+            return src;                         // 在两层结构中只存在一个 POD, 因此返回 src 编号
     }
 
+    // 计算 HOST 属于第几个 POD
     uint32_t HOST_POD(uint32_t src){
         if (_tiers == 3) 
             return src/_hosts_per_pod;
         else
             // only one pod in leaf-spine
-            return 0;
+            return 0;                           // 在两层结构中只存在一个 POD, 因此返回 0
     }
     /*
     uint32_t MIN_POD_ID(uint32_t pod_id){
@@ -143,30 +165,41 @@ public:
         return (pod_id+1)*K/2-1;
     }
      */
+
+    // 获取编号为 pod_id 的 POD 中最小的 TOR 交换机编号
     uint32_t MIN_POD_TOR_SWITCH(uint32_t pod_id){
         if (_tiers == 2) assert(pod_id == 0);
         return pod_id * _tor_switches_per_pod;
     }
+
+    // 获取编号为 pod_id 的 POD 中最大的 TOR 交换机编号
     uint32_t MAX_POD_TOR_SWITCH(uint32_t pod_id){
         if (_tiers == 2) assert(pod_id == 0);
         return (pod_id + 1) * _tor_switches_per_pod - 1;
     }
+
+    // 获取编号为 pod_id 的 POD 中最小的 AGG 交换机编号
     uint32_t MIN_POD_AGG_SWITCH(uint32_t pod_id){
         if (_tiers == 2) assert(pod_id == 0);
         return pod_id * _agg_switches_per_pod;
     }
+
+    // 获取编号为 pod_id 的 POD 中最大的 AGG 交换机编号
     uint32_t MAX_POD_AGG_SWITCH(uint32_t pod_id){
         if (_tiers == 2) assert(pod_id == 0);
         return (pod_id + 1) * _agg_switches_per_pod - 1;
     }
 
-    // convert an agg switch ID to a pod ID
+    // convert an agg switch ID to a pod ID 获取 AGG 交换机属于的 POD 编号
     uint32_t AGG_SWITCH_POD_ID(uint32_t agg_switch_id) {
         return agg_switch_id / _agg_switches_per_pod;
     }
     
     //uint32_t getK() const {return K;}
+
+    // 返回汇聚层交换机的数量
     uint32_t getNAGG() const {return NAGG;}
+
 private:
     map<Queue*,int> _link_usage;
     static FatTreeTopology* load(istream& file, QueueLoggerFactory* logger_factory, EventList& eventlist,
@@ -180,9 +213,9 @@ private:
     void set_params(uint32_t no_of_nodes);
     void set_custom_params(uint32_t no_of_nodes);
     void alloc_vectors();
-    uint32_t NCORE, NAGG, NTOR, NSRV, NPOD;
+    uint32_t NCORE, NAGG, NTOR, NSRV, NPOD;     // 核心层, 汇聚层, 接入层, 服务器, POD 数量
     uint32_t _tor_switches_per_pod, _agg_switches_per_pod;
-    static uint32_t _tiers;
+    static uint32_t _tiers;                     // 网络层数: 2 or 3
 
     // _link_latencies[0] is the ToR->host latency.
     static simtime_picosec _link_latencies[3];
@@ -207,18 +240,18 @@ private:
     static uint32_t _oversub[3];
 
     // switch radix used.  Eg _radix_down[0] = 32 indicates 32 downlinks from ToRs.  _radix_up[2] should be zero in a 3-tier topology.  
-    static uint32_t _radix_down[3];
-    static uint32_t _radix_up[2];
+    static uint32_t _radix_down[3];     // 下行链路的基数, 即交换机向上连接了几个设备, 向下连接了几个设备
+    static uint32_t _radix_up[2];       // 上行链路的基数, 由于 CORE 没有上层设备, 因此 _radix_up[2] = 0
 
     // switch queue size used.  Eg _queue_down[0] = 32 indicates 32 downlinks from ToRs.  _queue_up[2] should be zero in a 3-tier topology.  
     static mem_b _queue_down[3];
     static mem_b _queue_up[2];
 
     // number of hosts in a pod.  
-    static uint32_t _hosts_per_pod; 
+    static uint32_t _hosts_per_pod;                 // 每个 pods 的 server 数量
     
-    uint32_t _no_of_nodes;
-    simtime_picosec _hop_latency,_switch_latency;
+    uint32_t _no_of_nodes;                          // 结点数量
+    simtime_picosec _hop_latency,_switch_latency;   // 没跳的延迟, 交换机延迟
 };
 
 #endif

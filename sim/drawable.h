@@ -5,6 +5,7 @@
 
 /*
  * A base class for anything in a topology that is drawable
+ * 定义了拓扑中的位置描述
  */
 
 
